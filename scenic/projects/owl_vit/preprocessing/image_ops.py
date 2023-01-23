@@ -729,6 +729,7 @@ class DecodeLvisExample(DecodeCocoExample):
         features["neg_category_ids"], tf.int32)
     # A non-standard feature representing category ids not fully covered
     # by instance labels.
-    new_features[self.not_exhaustive_labels_key] = tf.cast(
-        features["not_exhaustive_category_ids"], tf.int32)
+    if "not_exhaustive_category_ids" in features:
+        new_features[self.not_exhaustive_labels_key] = tf.cast(
+            features["not_exhaustive_category_ids"], tf.int32)
     return new_features

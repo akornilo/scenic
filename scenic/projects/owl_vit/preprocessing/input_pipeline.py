@@ -53,6 +53,8 @@ DECODERS = {
         label_ops.DecodeVisualGenome,
     'lvis:1.2.0':
         label_ops.DecodeLvis,
+    'nu_images_builder:1.0.0':
+        label_ops.DecodeLvis,
     'objects365:0.0.1':
         label_ops.DecodeObjects365,
 }

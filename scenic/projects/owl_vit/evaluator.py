@@ -678,10 +678,10 @@ def main(argv: Sequence[str]) -> None:
           f'Found existing results and --overwrite=false, exiting: {existing}')
       return
 
-  if tf.io.gfile.exists(FLAGS.annotations_path):
-    annotations_path = FLAGS.annotations_path
-  else:
-    annotations_path = _download_annotations(FLAGS.annotations_path)
+#   if tf.io.gfile.exists(FLAGS.annotations_path):
+#     annotations_path = FLAGS.annotations_path
+#   else:
+#     annotations_path = _download_annotations(FLAGS.annotations_path)
 
   predictions = get_predictions(
       config=runpy.run_path(FLAGS.config)['get_config'](),
@@ -693,32 +693,32 @@ def main(argv: Sequence[str]) -> None:
   logging.info('Writing predictions...')
   predictions_path = write_predictions(predictions, output_dir, FLAGS.split)
 
-  logging.info('Running evaluation...')
-  try:
-    results = run_evaluation(annotations_path, predictions_path,
-                             FLAGS.data_format)
-  except IndexError as e:
-    logging.exception('IndexError while computing metric.')
-    results = {'ERROR': str(e)}
+#   logging.info('Running evaluation...')
+#   try:
+#     results = run_evaluation(annotations_path, predictions_path,
+#                              FLAGS.data_format)
+#   except IndexError as e:
+#     logging.exception('IndexError while computing metric.')
+#     results = {'ERROR': str(e)}
 
-  with tf.io.gfile.GFile(
-      os.path.join(output_dir, f'results_{FLAGS.split}.json'), 'w') as f:
-    json.dump(results, f, indent=4)
+#   with tf.io.gfile.GFile(
+#       os.path.join(output_dir, f'results_{FLAGS.split}.json'), 'w') as f:
+#     json.dump(results, f, indent=4)
 
-  if FLAGS.num_example_images_to_save:
-    logging.info('Saving example images...')
-    examples_dir = os.path.join(output_dir, 'examples')
-    tf.io.gfile.makedirs(examples_dir)
-    save_examples_images(
-        ground_truth_path=annotations_path,
-        pred_path=predictions_path,
-        tfds_name=FLAGS.tfds_name,
-        split=FLAGS.split,
-        output_dir=examples_dir,
-        num_images=FLAGS.num_example_images_to_save,
-        tfds_data_dir=FLAGS.tfds_data_dir)
+#   if FLAGS.num_example_images_to_save:
+#     logging.info('Saving example images...')
+#     examples_dir = os.path.join(output_dir, 'examples')
+#     tf.io.gfile.makedirs(examples_dir)
+#     save_examples_images(
+#         ground_truth_path=annotations_path,
+#         pred_path=predictions_path,
+#         tfds_name=FLAGS.tfds_name,
+#         split=FLAGS.split,
+#         output_dir=examples_dir,
+#         num_images=FLAGS.num_example_images_to_save,
+#         tfds_data_dir=FLAGS.tfds_data_dir)
 
-  logging.info('Done.')
+#   logging.info('Done.')
 
 
 if __name__ == '__main__':

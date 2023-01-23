@@ -38,7 +38,11 @@ class TextZeroShotDetectionModule(nn.Module):
   @nn.nowrap
   def load_variables(self, checkpoint_path: str) -> Mapping[str, Any]:
     restored = checkpoints.restore_checkpoint(checkpoint_path, target=None)
-    return {'params': restored['optimizer']['target']}
+
+    if 'params' in restored:
+        return {'params': restored['params']}
+    else:
+        return {'params': restored['optimizer']['target']}
 
   def setup(self):
     self._embedder = layers.ClipImageTextEmbedder(
@@ -187,8 +191,10 @@ class TextZeroShotDetectionModule(nn.Module):
         params = restored_train_state['optimizer']['target']
       else:
         params = restored_train_state['params']
-      params = checkpoints.convert_pre_linen(params)
 
+      # explicitly removing unused parameters after loading
+      params['class_head'].pop('padding', None)
+      params['class_head'].pop('padding_bias', None)
     return params
 
 
