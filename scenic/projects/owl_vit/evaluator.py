@@ -114,7 +114,7 @@ flags.DEFINE_integer(
     'num_example_images_to_save', 10,
     'Number of example images with predictions to save.')
 flags.DEFINE_integer(
-    'label_shift', 1,
+    'label_shift', 0,
     'Value that will be added to the model output labels in the prediction '
     'JSON files. The model predictions are zero-indexed. COCO or LVIS use '
     'one-indexed labels, so label_shift should be 1 for these datasets. Set '
@@ -343,8 +343,8 @@ def format_predictions(*,
     h, w = image_sizes[batch]
     for instance in range(num_instances):
       label = int(labels[batch, instance])
-      if not label:
-        continue
+    #   if not label:
+    #     continue
       score = float(scores[batch, instance])
       # Internally, we use center coordinates, but COCO uses corner coordinates:
       bcx, bcy, bw, bh = unpad_box(boxes[batch, instance], image_w=w, image_h=h)
@@ -364,7 +364,7 @@ def get_predictions(config: ml_collections.ConfigDict,
                     tfds_name: str,
                     split: str,
                     top_k: int = 300,
-                    exclusive_classes: bool = False,
+                    exclusive_classes: bool = True,
                     label_shift: int = 0) -> List[Dict[str, Any]]:
   """Gets predictions from an OWL-ViT model for a whole TFDS dataset.
 
@@ -427,7 +427,7 @@ def get_predictions(config: ml_collections.ConfigDict,
       total=int(dataset.cardinality().numpy())):
 
     outputs = predict(batch[modalities.IMAGE], query_embeddings)
-
+    #breakpoint()
     # Selec top k predictions:
     scores, labels, boxes = pmapped_top_k(
         outputs[modalities.SCORES],
@@ -441,7 +441,7 @@ def get_predictions(config: ml_collections.ConfigDict,
         scores, labels, boxes, batch[modalities.ORIGINAL_SIZE],
         batch[modalities.IMAGE_ID]
     ])
-
+   
     # Append predictions:
     predictions.extend(
         format_predictions(

@@ -733,3 +733,47 @@ class DecodeLvisExample(DecodeCocoExample):
         new_features[self.not_exhaustive_labels_key] = tf.cast(
             features["not_exhaustive_category_ids"], tf.int32)
     return new_features
+
+@dataclasses.dataclass(frozen=True)
+class DecodeSimpleImageExample(DecodeImage):
+  """Given Simple Images TFDS example, creates features with boxes.
+
+  The processing in this class includes:
+  1. Converting images from uint8 to float32 with range [0, 1]. Note that TFDS
+     already parses the serialized protos and decodes jpeg images into uint8.
+  2. Renaming keys to modality names.
+  3. Cast rest of features to correct TF type
+  """
+  boxes_key: str = modalities.BOXES
+  instance_labels_key: str = modalities.INSTANCE_LABELS
+  instance_text_labels_key: str = modalities.INSTANCE_TEXT_LABELS
+
+  area_key: str = modalities.AREA
+  orig_size_key: str = modalities.ORIGINAL_SIZE
+  image_id_key: str = modalities.IMAGE_ID
+
+  negative_labels_key: str = modalities.NEGATIVE_LABELS
+  negative_text_labels_key: str = modalities.NEGATIVE_TEXT_LABELS
+
+  def __call__(self, features: Features) -> Features:
+    features = super().__call__(features)
+    image_size = transforms.get_dynamic_size(features[self.image_key])
+    
+    boxes = features["objects"]["bbox"]  # float32, in range [0, 1].
+    instance_labels = tf.cast(features["objects"]["label"], tf.int32)
+
+    new_features = {
+        self.image_key: features[self.image_key],
+        self.boxes_key: boxes,
+        self.instance_labels_key: instance_labels,
+        self.area_key: features["objects"]["area"],
+        self.orig_size_key: tf.cast(image_size, tf.int32),
+        self.image_id_key: features["image/id"],
+    }
+    new_features[self.negative_labels_key] = tf.cast(
+        features["neg_category_ids"], tf.int32)
+
+    if "rng" in features:
+      new_features[SEED_KEY] = features["rng"]
+    
+    return new_features

@@ -54,7 +54,9 @@ DECODERS = {
     'lvis:1.2.0':
         label_ops.DecodeLvis,
     'nu_images_builder:1.0.0':
-        label_ops.DecodeLvis,
+        label_ops.DecodeNuImages,
+    'nu_images_builder_v2:1.0.0':
+        label_ops.DecodeNuImages,
     'objects365:0.0.1':
         label_ops.DecodeObjects365,
 }
@@ -359,7 +361,6 @@ def _build_pipeline(config: ml_collections.ConfigDict,
   # Apply post-mosaic processing:
   post_mosaic_processing = _get_post_mosaic_process_fn(config.preproc_spec)
   post_mosaic_ops = list(post_mosaic_processing.ops)
-
   post_mosaic_ops.append(
       label_ops.ConvertToScenic(
           input_range=config.input_range,
@@ -507,7 +508,6 @@ def get_dataset(
   )
   eval_iter = iter(eval_ds)
   eval_iter = map(dataset_utils.tf_to_numpy, eval_iter)
-
   total_examples = sum(
       dataset_utils.get_num_examples(name, split, train_config.data_dirs[0].get(
           name)) for name, split in zip(dataset_configs.train.tfds_names,

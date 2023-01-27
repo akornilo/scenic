@@ -459,6 +459,16 @@ class DecodeLvis(image_ops.DecodeLvisExample):
     return IntegerToTextLabels(
         tfds_name='lvis', is_promptable=self.is_promptable)(features)
 
+@dataclasses.dataclass(frozen=True)
+class DecodeNuImages(image_ops.DecodeSimpleImageExample):
+  is_promptable: bool = True
+  tfds_data_dir: Optional[str] = None
+
+  def __call__(self, features: Features) -> Features:
+    features = super().__call__(features)
+    return IntegerToTextLabels(
+        tfds_name='nu_images_builder', is_promptable=self.is_promptable)(features)
+
 
 @dataclasses.dataclass(frozen=True)
 class DecodeObjects365(image_ops.DecodeCocoExample):

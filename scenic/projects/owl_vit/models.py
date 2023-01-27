@@ -5,6 +5,7 @@ from typing import Any, Dict, List, Mapping, Optional
 import flax.linen as nn
 from flax.training import checkpoints
 import jax.numpy as jnp
+import jax.lax
 import ml_collections
 from scenic.projects.owl_vit import layers
 from scenic.projects.owl_vit import matching_base_models
@@ -31,6 +32,7 @@ class TextZeroShotDetectionModule(nn.Module):
   body_configs: ml_collections.ConfigDict
   normalize: bool = False
   box_bias: str = 'both'
+  freeze_backbone: bool = False
 
   def tokenize(self, text: str, max_token_len: int = 16) -> List[int]:
     return clip_tokenizer.tokenize(text, max_token_len)
@@ -154,9 +156,14 @@ class TextZeroShotDetectionModule(nn.Module):
     feature_map = self.image_embedder(inputs, train)
     b, h, w, d = feature_map.shape
     image_features = jnp.reshape(feature_map, (b, h * w, d))
-
+    if self.freeze_backbone:
+        image_features = jax.lax.stop_gradient(image_features) 
+    
     # Embed queries:
     query_embeddings = self.text_embedder(text_queries, train)
+    if self.freeze_backbone:
+        query_embeddings = jax.lax.stop_gradient(query_embeddings)
+    
     # If first token is 0, then this is a padding query [b, q].
     query_mask = (text_queries[..., 0] > 0).astype(jnp.float32)
 
@@ -205,4 +212,5 @@ class TextZeroShotDetectionModel(matching_base_models.ObjectDetectionModel):
     return TextZeroShotDetectionModule(
         body_configs=self.config.model.body,
         normalize=self.config.model.normalize,
-        box_bias=self.config.model.box_bias)
+        box_bias=self.config.model.box_bias,
+        freeze_backbone=self.config.model.freeze_backbone)

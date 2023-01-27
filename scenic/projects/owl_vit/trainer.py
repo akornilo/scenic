@@ -5,6 +5,8 @@ import functools
 import time
 from typing import Any
 
+import pdb
+
 from absl import logging
 from clu import metric_writers
 from clu import periodic_actions
@@ -65,6 +67,7 @@ def get_train_step(flax_model,
 
     updates, new_opt_state = train_state.tx.update(
         grad, train_state.opt_state, train_state.params)
+    
     new_params = optax.apply_updates(train_state.params, updates)
 
     new_train_state = train_state.replace(
@@ -118,6 +121,7 @@ def get_train_step(flax_model,
       new_rng, model_rng = jax.random.split(train_state.rng)
       grad, metrics = grad_fn({'batch': batch, 'rng': model_rng})
 
+    # breakpoint()
     new_train_state, g = update_fn(train_state, grad, new_rng)
     metrics['l2_grads'] = (utils.l2_norm(g), 1)
     metrics['l2_params'] = (utils.l2_norm(new_train_state.params), 1)
@@ -206,7 +210,7 @@ def train(*, rng: jnp.ndarray, config: ml_collections.ConfigDict,
        input_spec=input_spec,
        config=config,
        rngs=init_rng)
-
+  # breakpoint()
   if config.prior_prob:
     params = flax.core.unfreeze(params)
     bias_init = utils.init_classification_bias(
@@ -226,7 +230,6 @@ def train(*, rng: jnp.ndarray, config: ml_collections.ConfigDict,
 
   # Create chrono class to track and store training statistics and metadata:
   chrono = train_utils.Chrono()
-
   train_state = train_utils.TrainState(
       global_step=0,
       params=params,
@@ -249,7 +252,7 @@ def train(*, rng: jnp.ndarray, config: ml_collections.ConfigDict,
     train_state, start_step = train_utils.restore_checkpoint(
         workdir, train_state)
   chrono.load(train_state.metadata['chrono'])
-
+  # breakpoint()
   if start_step != 0:
     # Option 1:
     logging.info('Continuing from checkpoint in workdir: step=%s, workdir=%s',
@@ -258,7 +261,9 @@ def train(*, rng: jnp.ndarray, config: ml_collections.ConfigDict,
     # Option 2: Resume from previous training job:
     if config.get('resume_from') is not None:
       logging.info('Loading params and optimizer: %s', config.init_from)
-      checkpoint_path = config.resume_from.get('checkpoint_path')
+      checkpoint_path = config.init_from.get('checkpoint_path')
+      # This basically ignored the train state generated previously
+      # Why it needs to be passed in at all is not clear
       train_state = checkpoints.restore_checkpoint(
           checkpoint_path, target=train_state)
 
@@ -266,16 +271,20 @@ def train(*, rng: jnp.ndarray, config: ml_collections.ConfigDict,
     elif config.get('init_from') is not None:
       logging.info('Loading params: %s', config.init_from)
       init_config = config.init_from.copy_and_resolve_references()
+
       # Delegate the actual loading to the model. `module.bind()` is needed to
       # initialize submodules, which have their own `load` functions.
+      
       params = model.flax_model.bind({}).load(
           train_state.params.unfreeze(), init_config)
+      # breakpoint()
       train_state = train_state.replace(params=flax.core.freeze(params))
-
+      # breakpoint()
     # Option 4: Train from scratch.
     else:
       logging.info('Training from scratch.')
 
+  
   # Replicate the optimzier, state, and rng.
   train_state = jax_utils.replicate(train_state)
   del params  # do not keep a copy of the initial model
@@ -283,6 +292,7 @@ def train(*, rng: jnp.ndarray, config: ml_collections.ConfigDict,
   # Calculate the total number of training steps.
   total_steps, steps_per_epoch = train_utils.get_num_training_steps(
       config, dataset.meta_data)
+
 
   train_step = get_train_step(
       flax_model=model.flax_model,
