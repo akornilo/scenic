@@ -760,20 +760,23 @@ class DecodeSimpleImageExample(DecodeImage):
     image_size = transforms.get_dynamic_size(features[self.image_key])
     
     boxes = features["objects"]["bbox"]  # float32, in range [0, 1].
+
     instance_labels = tf.cast(features["objects"]["label"], tf.int32)
 
     new_features = {
         self.image_key: features[self.image_key],
         self.boxes_key: boxes,
         self.instance_labels_key: instance_labels,
+
+        self.instance_text_labels_key: features["objects"]["text_label"],
         self.area_key: features["objects"]["area"],
         self.orig_size_key: tf.cast(image_size, tf.int32),
         self.image_id_key: features["image/id"],
     }
-    new_features[self.negative_labels_key] = tf.cast(
-        features["neg_category_ids"], tf.int32)
-
+    new_features[self.negative_labels_key] = tf.cast(features["negative_labels"], tf.int32)    
+    new_features[self.negative_text_labels_key] = features["negative_text_labels"]
+    
     if "rng" in features:
       new_features[SEED_KEY] = features["rng"]
-    
+
     return new_features

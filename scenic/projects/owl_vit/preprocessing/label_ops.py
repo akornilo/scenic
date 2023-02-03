@@ -460,15 +460,14 @@ class DecodeLvis(image_ops.DecodeLvisExample):
         tfds_name='lvis', is_promptable=self.is_promptable)(features)
 
 @dataclasses.dataclass(frozen=True)
-class DecodeNuImages(image_ops.DecodeSimpleImageExample):
-  is_promptable: bool = True
-  tfds_data_dir: Optional[str] = None
-
+class DecodePeriscopeImage(image_ops.DecodeSimpleImageExample):
+  # TODO: Identify if more needs to be done here
   def __call__(self, features: Features) -> Features:
     features = super().__call__(features)
-    return IntegerToTextLabels(
-        tfds_name='nu_images_builder', is_promptable=self.is_promptable)(features)
-
+    #breakpoint()
+    
+    return features
+   
 
 @dataclasses.dataclass(frozen=True)
 class DecodeObjects365(image_ops.DecodeCocoExample):
@@ -504,6 +503,7 @@ class CanonicalizeTextLabels(NamedPreprocessOp):
                               modalities.NEGATIVE_TEXT_LABELS)
 
   def apply(self, features: Features) -> Features:
+
     for text_key in self.text_keys:
       if text_key in features:
         features[text_key] = _canonicalize_string_tf(features[text_key])
@@ -561,7 +561,7 @@ class IntegerToTextLabels(NamedPreprocessOp):
         features[text_key] = remove_promptability_marker(features[text_key])
       if not self.is_promptable:
         features[text_key] = mark_not_promptable(features[text_key])
-
+    
     return features
 
 
@@ -705,6 +705,15 @@ class AddRandomNegativeLabels(NamedPreprocessOp):
         features[modalities.NEGATIVE_TEXT_LABELS],
         candidate_negatives,
     ], axis=0)
+
+    ## Temporary change to sample from all possible negatives ###
+    # all_negative_cands =  tf.concat([
+    #             features[modalities.NEGATIVE_TEXT_LABELS],
+    #             candidate_negatives,
+    #             ], axis=0)
+    # all_negative_shuffled = tf.random.shuffle(all_negative_cands)
+    # new_negatives = tf.concat([tf.constant([PADDING_QUERY]), all_negative_shuffled], axis=0)
+
     orig_num_negatives = tf.shape(features[modalities.NEGATIVE_TEXT_LABELS])[0]
     new_num_negatives = tf.maximum(self.total_num_negatives, orig_num_negatives)
     features[modalities.NEGATIVE_TEXT_LABELS] = tf.unique(

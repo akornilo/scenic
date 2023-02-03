@@ -53,10 +53,12 @@ DECODERS = {
         label_ops.DecodeVisualGenome,
     'lvis:1.2.0':
         label_ops.DecodeLvis,
-    'nu_images_builder:1.0.0':
-        label_ops.DecodeNuImages,
-    'nu_images_builder_v2:1.0.0':
-        label_ops.DecodeNuImages,
+    'periscope_builder:1.0.0':
+        label_ops.DecodePeriscopeImage,
+    # 'nu_images_builder:1.0.0':
+    #     label_ops.DecodeNuImages,
+    # 'nu_images_builder_v2:1.0.0':
+    #     label_ops.DecodeNuImages,
     'objects365:0.0.1':
         label_ops.DecodeObjects365,
 }
@@ -321,8 +323,8 @@ def _build_pipeline(config: ml_collections.ConfigDict,
   """
 
   builders = [
-      tfds.builder(name, data_dir=config.data_dirs[0].get(name))
-      for name in config.tfds_names
+      tfds.builder(name, data_dir=data_dir)
+      for name, data_dir in zip(config.tfds_names, config.tfds_data_dirs)
   ]
 
   decoder_kwarg_list = config.get('decoder_kwarg_list',
@@ -401,14 +403,15 @@ def _validate_and_normalize_config(
   config = ml_collections.ConfigDict({**dataset_configs, **mode_config})
 
   # Validate config structure:
-  decoder_kwarg_list = config.get('decoder_kwarg_list',
-                                  [{}] * len(config.tfds_names))
-  if not (len(config.tfds_names) == len(config.splits) == len(
-      config.dataset_probs) == len(decoder_kwarg_list)):
-    raise ValueError(
-        'Dataset settings must have matching lengths, got '
-        f'{config.tfds_names}, {config.splits}, {config.dataset_probs}, '
-        f'{decoder_kwarg_list}.')
+  #   decoder_kwarg_list = config.get(config.tfds_data_dirs,
+  #                                   [None] * len(config.tfds_names))
+
+  #   if not (len(config.tfds_names) == len(config.splits) == len(
+  #       config.dataset_probs) == len(config.tfds_data_dirs)):
+  #     raise ValueError(
+  #         'Dataset settings must have matching lengths, got '
+  #         f'{config.tfds_names}, {config.splits}, {config.dataset_probs}, '
+  #         f'{decoder_kwarg_list}.')
 
   mosaic_sizes = config.get('mosaic_sizes', (1,))
   mosaic_probs = config.get('mosaic_probs', (1.0,))
@@ -418,11 +421,11 @@ def _validate_and_normalize_config(
         f'{mosaic_sizes}, {mosaic_probs}.')
 
   # Determine data_dirs:
-  data_dirs = {}
-  for tfds_name, kws in zip(config.tfds_names, decoder_kwarg_list):
-    # First look for data dir in decoder_kwargs, otherwise use None:
-    data_dirs[tfds_name] = kws.get('tfds_data_dir')
-  config.data_dirs = (data_dirs,)  # Wrap tuple avoids ConfigDict conversion.
+  #   data_dirs = {}
+  #   for tfds_name, kws in zip(config.tfds_names, decoder_kwarg_list):
+  #     # First look for data dir in decoder_kwargs, otherwise use None:
+  #     data_dirs[tfds_name] = kws.get('tfds_data_dir')
+  #   config.data_dirs = (data_dirs,)  # Wrap tuple avoids ConfigDict conversion.
 
   return config
 
@@ -488,9 +491,10 @@ def get_dataset(
       rng=train_rng,
       shuffle=True,
     )
-
   example_batch = next(iter(train_ds))
+  
   train_iter = iter(train_ds)
+  #breakpoint()
   train_iter = map(dataset_utils.tf_to_numpy, train_iter)
 
   if dataset_configs.get('prefetch_to_device'):
@@ -509,24 +513,24 @@ def get_dataset(
   eval_iter = iter(eval_ds)
   eval_iter = map(dataset_utils.tf_to_numpy, eval_iter)
   total_examples = sum(
-      dataset_utils.get_num_examples(name, split, train_config.data_dirs[0].get(
-          name)) for name, split in zip(dataset_configs.train.tfds_names,
+      dataset_utils.get_num_examples(name, split, data_dir) for name, data_dir, split in zip(dataset_configs.train.tfds_names,
+                                        dataset_configs.train.tfds_data_dirs,
                                         dataset_configs.train.splits))
-  eval_data_dir = eval_config.data_dirs[0].get(
-      dataset_configs.eval.tfds_names[0])
+  eval_data_dir = dataset_configs.eval.tfds_data_dirs[0]
   total_eval_examples = dataset_utils.get_num_examples(
       dataset_configs.eval.tfds_names[0], dataset_configs.eval.splits[0],
       data_dir=eval_data_dir)
-
   eval_builder = tfds.builder(dataset_configs.eval.tfds_names[0],
                               data_dir=eval_data_dir)
 
-  if 'bobjects' in eval_builder.info.features:
-    num_classes = eval_builder.info.features['bobjects']['label'].num_classes
-  else:
-    num_classes = eval_builder.info.features['objects']['label'].num_classes
-  num_classes += 1
-
+  #   breakpoint()
+  #   if 'bobjects' in eval_builder.info.features:
+  #     num_classes = eval_builder.info.features['bobjects']['label'].num_classes
+  #   else:
+  #     num_classes = eval_builder.info.features['objects']['label'].num_classes
+  #   num_classes += 1
+  
+  num_classes = 26 # Need to figure out why we need this number and how to make it flexible
   meta_data = {
       'input_shape': (-1,) + tuple(example_batch['inputs'].shape[-3:]),
       'query_shape': (-1,) + tuple(example_batch['queries'].shape[-2:]),
