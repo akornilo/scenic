@@ -56,6 +56,12 @@ import tensorflow as tf
 import tensorflow_datasets as tfds
 import tqdm
 
+CLASS_NAMES = ['animal', 'flat driveable surface', 'adult', 'child', 'construction_worker', 
+              'person on a skateboard', 'police officer', 'person with a stroller', 'person in a wheelchair', 
+              'barrier', 'debris', 'dolly', 'traffic cone', 'bicycle rack', 'bicycle', 'bendy bus', 'bus', 
+              'car', 'construction vehicle', 'dashboard', 'ambulance', 'police car', 'motorcycle', 'trailer', 'truck']
+
+
 LVIS_VAL_URL = 'https://s3-us-west-2.amazonaws.com/dl.fbaipublicfiles.com/LVIS/lvis_v1_val.json.zip'
 
 COCO_METRIC_NAMES = [
@@ -91,7 +97,7 @@ flags.DEFINE_bool(
     'overwrite', False, 'Whether to overwrite existing results.')
 flags.DEFINE_string(
     'tfds_name',
-    'lvis',
+    'periscope_builder',
     'TFDS name of the dataset to run inference on.')
 flags.DEFINE_string('split', 'validation', 'Dataset split to run inference on.')
 flags.DEFINE_string(
@@ -99,7 +105,7 @@ flags.DEFINE_string(
     _DEFAULT_ANNOTATIONS_PATH,
     'Path to JSON file with ground-truth annotations in COCO/LVIS format. '
     'If it does not exist, the script will try to download it.')
-flags.DEFINE_enum('data_format', 'lvis', ('lvis', 'coco'),
+flags.DEFINE_enum('data_format', 'periscope_builder', ('lvis', 'coco', 'periscope_builder'),
                   'Whether to use the LVIS or COCO API.')
 flags.DEFINE_enum('platform', 'cpu', ('cpu', 'gpu', 'tpu'), 'JAX platform.')
 flags.DEFINE_string(
@@ -138,16 +144,18 @@ def get_dataset(tfds_name: str,
                 input_size: int,
                 tfds_data_dir: Optional[str] = None,
                 tfds_download_dir: Optional[str] = None,
-                data_format: str = 'lvis') -> Tuple[tf.data.Dataset, List[str]]:
+                data_format: str = 'periscope_builder') -> Tuple[tf.data.Dataset, List[str]]:
   """Returns a tf.data.Dataset and class names."""
   builder = tfds.builder(tfds_name, data_dir=tfds_data_dir)
   builder.download_and_prepare(download_dir=tfds_download_dir)
-  class_names = builder.info.features['objects']['label'].names
+  class_names = None #builder.info.features['objects']['label'].names ## Temp Hard-Coding
   ds = builder.as_dataset(split=split)
   if data_format == 'lvis':
     decoder = image_ops.DecodeLvisExample()
   elif data_format == 'coco':
     decoder = image_ops.DecodeCocoExample()
+  elif data_format == 'periscope_builder':
+    decoder = image_ops.DecodeSimpleImageExample()
   else:
     raise ValueError(f'Unknown data format: {data_format}.')
   pp_fn = preprocess_spec.PreprocessFn([
@@ -408,6 +416,9 @@ def get_predictions(config: ml_collections.ConfigDict,
       tfds_data_dir=FLAGS.tfds_data_dir,
       tfds_download_dir=FLAGS.tfds_download_dir,
       data_format=FLAGS.data_format)
+
+  # Temporary Hard-Coding
+  class_names = CLASS_NAMES
 
   # Embed queries:
   query_embeddings = []

@@ -129,6 +129,7 @@ def replace_frozen(schedule, pytree, replacement, log: Optional[str] = None):
   schedule = [(cfg.re, cfg.lr_configs) for name, cfg in schedule.items()]
 
   masks, scheds = _make_mask_trees(pytree, schedule, log=log)
+  
   frozen_mask, _, _ = _split_frozen(masks, [value for _, value in scheds])
   return jax.tree_util.tree_map(
       lambda v, f: replacement if f else v, pytree, frozen_mask)
@@ -149,8 +150,11 @@ def make_schedule(
 
   # Create actual schedules funtions.
   def create_schedule(lr_configs):
-    fn = get_learning_rate_fn(
-        ml_collections.ConfigDict({'lr_configs': lr_configs}))
+    if lr_configs is not None:
+        fn = get_learning_rate_fn(
+            ml_collections.ConfigDict({'lr_configs': lr_configs}))
+    else:
+        fn = None
     # Base LR is used for decoupling WD from LR schedules.
     base_lr = 1.0
     if lr_configs is not None:
@@ -176,10 +180,10 @@ def make(config: ml_collections.ConfigDict,
   """
 
   masks, scheds = _make_mask_trees(params, schedule, log='schedule')
-  frozen_mask, masks, scheds = _split_frozen(masks, scheds)
+  frozen_mask, masks, scheds = _split_frozen(masks, [value for _, value in scheds])
   not_frozen_mask = jax.tree_util.tree_map(operator.not_, frozen_mask)
-  schedule_fns, schedule_base_lr = zip(
-      *[fn_base for _, fn_base in (scheds or [])])
+  schedule_fns = [fn_base for fn_base, _ in (scheds or [])]
+  schedule_base_lr = [base_lr for _, base_lr in (scheds or [])]
   schedule_txs = [
       optax.masked(optax.scale_by_schedule(schedule_fn), mask)
       for schedule_fn, mask in zip(schedule_fns, masks)
